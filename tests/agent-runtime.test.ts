@@ -140,6 +140,42 @@ describe("AgentRuntime", () => {
     });
   });
 
+  it("rejects malformed task fields before emitting lifecycle events", async () => {
+    const eventBus = new RuntimeEventBus();
+    const events: string[] = [];
+    eventBus.on("runtime.task.received", (event) => {
+      events.push(event.name);
+    });
+    eventBus.on("runtime.task.failed", (event) => {
+      events.push(event.name);
+    });
+    eventBus.on("runtime.task.completed", (event) => {
+      events.push(event.name);
+    });
+
+    const runtime = new AgentRuntime({
+      runtimeId: "runtime-invalid-task",
+      eventBus
+    });
+
+    await runtime.start();
+
+    await expect(
+      runtime.executeTask({
+        taskId: "",
+        agentId: "agent-1",
+        toolName: "noop",
+        input: "Run noop",
+        payload: {}
+      })
+    ).rejects.toMatchObject({
+      code: "INVALID_TASK",
+      message: "taskId must be a non-empty string."
+    });
+
+    expect(events).toEqual([]);
+  });
+
   it("surfaces tool lookup failures as typed runtime errors", async () => {
     const runtime = new AgentRuntime({ runtimeId: "runtime-missing-tool" });
     await runtime.start();

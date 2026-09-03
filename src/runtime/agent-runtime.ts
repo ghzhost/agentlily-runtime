@@ -1,6 +1,9 @@
 import { RuntimeError } from "../errors/runtime-errors.js";
 import type { RuntimeEventBus } from "../events/runtime-events.js";
-import { assertRuntimeStarted } from "../guards/runtime-guards.js";
+import {
+  assertNonEmptyValue,
+  assertRuntimeStarted
+} from "../guards/runtime-guards.js";
 import type { RuntimeTask, TaskExecutionResult } from "../tasks/task-types.js";
 import type { ToolDefinition } from "../tools/types.js";
 import { createRuntimeDependencies } from "./bootstrap.js";
@@ -108,6 +111,13 @@ export class AgentRuntime {
     task: RuntimeTask<TPayload>
   ): Promise<TaskExecutionResult<TResult>> {
     assertRuntimeStarted(this.started);
+
+    // Validate required task fields before emitting runtime.task.received
+    // to keep the event stream restricted to well-formed tasks that legitimately start.
+    assertNonEmptyValue(task.taskId, "taskId");
+    assertNonEmptyValue(task.agentId, "agentId");
+    assertNonEmptyValue(task.toolName, "toolName");
+    assertNonEmptyValue(task.input, "input");
 
     const agent = this.dependencies.agentManager.getOrCreate(task.agentId);
     const context: RuntimeContext = {
